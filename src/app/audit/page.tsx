@@ -100,15 +100,25 @@ export default function AuditPage() {
         <div className="bg-white rounded-2xl border border-[#E8E6E0] p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
             <span>Security Alerts (24h)</span>
-            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <AlertTriangle
+              className={`w-4 h-4 ${
+                criticalCount + warningCount > 0 ? "text-amber-600" : "text-emerald-600"
+              }`}
+            />
           </div>
           <div className="text-2xl font-bold text-stone-900 mt-2 tracking-tight tabular-nums">
             {criticalCount + warningCount}{" "}
             <span className="text-xs text-stone-400 font-normal">
-              ({criticalCount} critical, {warningCount} warnings)
+              {criticalCount + warningCount === 0
+                ? "(0 alerts, clean perimeter)"
+                : `(${criticalCount} critical, ${warningCount} warnings)`}
             </span>
           </div>
-          <p className="text-[11px] text-stone-500 mt-1">Intercepted and logged automatically</p>
+          <p className="text-[11px] text-stone-500 mt-1">
+            {criticalCount + warningCount === 0
+              ? "Zero unauthorized intrusions or suspicious anomalies detected"
+              : "Intercepted and logged automatically"}
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-[#E8E6E0] p-5 shadow-xs">
@@ -189,8 +199,22 @@ export default function AuditPage() {
             <tbody className="divide-y divide-[#F0EFEA] text-xs">
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-stone-400 font-sans">
-                    No security events found matching your criteria.
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="max-w-sm mx-auto flex flex-col items-center">
+                      <div className="w-10 h-10 rounded-2xl bg-stone-100 flex items-center justify-center text-stone-400 mb-3">
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <h4 className="text-sm font-semibold text-stone-800">
+                        {auditLogs.length === 0
+                          ? "No Audit Events Recorded Yet"
+                          : "No Matching Security Events"}
+                      </h4>
+                      <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                        {auditLogs.length === 0
+                          ? "The immutable security ledger is active. Workspace actions (invoices issued, settings changed, logins) will be recorded here in real-time."
+                          : "Try adjusting your search query, severity, or category filter to inspect other logs."}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (

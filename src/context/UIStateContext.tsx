@@ -12,6 +12,7 @@ import {
   WEBHOOK_TEMPLATES,
 } from "@/lib/data";
 import { CurrencyCode, FX_RATES, formatMoney } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
 
 export interface ToastMessage {
   id: string;
@@ -74,6 +75,7 @@ interface UIStateContextType {
 const UIStateContext = createContext<UIStateContextType | undefined>(undefined);
 
 export function UIStateProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>("USD");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -119,16 +121,31 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
         if (savedAudit !== null) {
           const parsed = JSON.parse(savedAudit);
           if (Array.isArray(parsed)) {
-            const cleaned = parsed.map((item: any) => ({
-              ...item,
-              actor:
-                item.actor === "Sarah Lin"
-                  ? "Admin Operator"
-                  : item.actor === "Marcus Vance"
-                  ? "Billing Operator"
-                  : item.actor,
-            }));
-            setAuditLogs(cleaned);
+            if (isDemo) {
+              setAuditLogs(parsed.length > 0 ? parsed : INITIAL_AUDIT_LOGS);
+            } else {
+              // In real workspace mode, permanently purge all fake mock demo entries
+              const mockIds = new Set(INITIAL_AUDIT_LOGS.map((m) => m.id));
+              const realLogs = parsed.filter((item: any) => {
+                if (mockIds.has(item.id)) return false;
+                if (item.id && typeof item.id === "string" && item.id.startsWith("aud-00")) return false;
+                if (item.actor === "Admin Operator" || item.actor === "Billing Operator") return false;
+                if (item.actor === "Sarah Lin" || item.actor === "Marcus Vance" || item.actor === "Stripe Webhook Gateway") return false;
+                if (item.actor === "root@unknown-proxy.onion" || item.actor === "Unknown Remote Client") return false;
+                if (item.target === "Session Token #cx_jwt_live" || item.target === "TOTP Authenticator") return false;
+                if (item.target === "INV-2026-089" || item.target === "INV-2026-087") return false;
+                if (item.target === "US-EIN-84-2918402" || item.target === "/api/auth/login" || item.target === "calyx-revenue-report.csv") return false;
+                if (item.details && typeof item.details === "string") {
+                  if (item.details.includes("NeuralArc") || item.details.includes("Koyo")) return false;
+                  if (item.details.includes("unknown-proxy") || item.details.includes("US-EIN-84-2918402")) return false;
+                  if (item.details.includes("Oct 2025 - Apr 2026") || item.details.includes("emergency recovery codes")) return false;
+                  if (item.details.includes("active remember-me token")) return false;
+                }
+                return true;
+              });
+              setAuditLogs(realLogs);
+              localStorage.setItem("calyx_audit_logs", JSON.stringify(realLogs));
+            }
           }
         } else if (isDemo) {
           setAuditLogs(INITIAL_AUDIT_LOGS);
@@ -179,6 +196,7 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("calyx_invoices", JSON.stringify(SAMPLE_INVOICES));
       localStorage.setItem("calyx_customers", JSON.stringify(SAMPLE_CUSTOMERS));
       localStorage.setItem("calyx_audit_logs", JSON.stringify(INITIAL_AUDIT_LOGS));
+      localStorage.setItem("calyx_active_plan", "growth");
       localStorage.setItem("calyx_demo_mode", "true");
     } catch {
       // ignore
@@ -193,10 +211,13 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
   const resetWorkspace = () => {
     setInvoices([]);
     setCustomers([]);
+    setAuditLogs([]);
     setIsDemoData(false);
     try {
       localStorage.setItem("calyx_invoices", JSON.stringify([]));
       localStorage.setItem("calyx_customers", JSON.stringify([]));
+      localStorage.setItem("calyx_audit_logs", JSON.stringify([]));
+      localStorage.removeItem("calyx_active_plan");
       localStorage.removeItem("calyx_demo_mode");
     } catch {
       // ignore
@@ -209,6 +230,7 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
   };
 
   const handleSetCurrency = (currency: CurrencyCode) => {
+    if (currency === activeCurrency) return;
     setActiveCurrency(currency);
     try {
       localStorage.setItem("calyx_currency", currency);
@@ -218,12 +240,12 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
     addAuditLog({
       event: "settings.currency_changed",
       category: "settings",
-      actor: "Workspace User",
-      actorRole: "Admin",
-      ipAddress: "192.168.1.42 (US-East)",
+      actor: user?.name || (user?.company ? `${user.company} Admin` : "Workspace Admin"),
+      actorRole: user?.role === "admin" ? "Admin" : "Billing",
+      ipAddress: "127.0.0.1 (Local Session)",
       target: currency,
       severity: "info",
-      details: `Active reporting currency switched to ${currency} (${FX_RATES[currency].label}).`,
+      details: `Active reporting currency switched to ${currency} (${FX_RATES[currency]?.label || currency}).`,
     });
   };
 
@@ -294,9 +316,9 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
     addAuditLog({
       event: "invoice.created",
       category: "invoice",
-      actor: "Active User",
-      actorRole: "Admin",
-      ipAddress: "192.168.1.42 (US-East)",
+      actor: user?.name || "Workspace Admin",
+      actorRole: user?.role === "admin" ? "Admin" : "Billing",
+      ipAddress: "127.0.0.1 (Local Session)",
       target: newInvoice.number,
       severity: "info",
       details: `Created invoice ${newInvoice.number} for ${newInvoice.customerName} (${newInvoice.customerCompany}) amounting to $${newInvoice.amount.toFixed(2)}.`,
@@ -319,9 +341,9 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
       addAuditLog({
         event: "invoice.deleted",
         category: "invoice",
-        actor: "Active User",
-        actorRole: "Admin",
-        ipAddress: "192.168.1.42 (US-East)",
+        actor: user?.name || (user?.company ? `${user.company} Admin` : "Workspace Admin"),
+        actorRole: user?.role === "admin" ? "Admin" : "Billing",
+        ipAddress: "127.0.0.1 (Local Session)",
         target: target.number,
         severity: "warning",
         details: `Deleted invoice ${target.number} ($${target.amount.toFixed(2)}) for ${target.customerCompany}.`,
@@ -344,9 +366,9 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
     addAuditLog({
       event: "invoice.bulk_deleted",
       category: "invoice",
-      actor: "Active User",
-      actorRole: "Admin",
-      ipAddress: "192.168.1.42 (US-East)",
+      actor: user?.name || (user?.company ? `${user.company} Admin` : "Workspace Admin"),
+      actorRole: user?.role === "admin" ? "Admin" : "Billing",
+      ipAddress: "127.0.0.1 (Local Session)",
       target: `${ids.length} Invoices`,
       severity: "warning",
       details: `Bulk deleted ${ids.length} invoices: ${targetNumbers.join(", ")}.`,
@@ -367,9 +389,9 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
     addAuditLog({
       event: "customer.created",
       category: "subscription",
-      actor: "Active User",
-      actorRole: "Admin",
-      ipAddress: "192.168.1.42 (US-East)",
+      actor: user?.name || (user?.company ? `${user.company} Admin` : "Workspace Admin"),
+      actorRole: user?.role === "admin" ? "Admin" : "Billing",
+      ipAddress: "127.0.0.1 (Local Session)",
       target: newCustomer.company,
       severity: "info",
       details: `Registered new organization ${newCustomer.company} (${newCustomer.plan}).`,

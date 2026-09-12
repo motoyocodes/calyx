@@ -17,16 +17,117 @@ import {
 } from "lucide-react";
 
 export default function SubscriptionsPage() {
-  const { billingCycle, setBillingCycle, addToast } = useUIState();
+  const {
+    billingCycle,
+    setBillingCycle,
+    addToast,
+    isDemoData,
+    liveMRR,
+    dispatchedEventsCount,
+    formatMoneyWithFX,
+  } = useUIState();
   const { user } = useAuth();
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<PlanTier | null>(null);
-  const [activePlanId, setActivePlanId] = useState<string>("growth");
+  const [activePlanId, setActivePlanId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("calyx_active_plan");
+      if (saved) return saved;
+    }
+    return isDemoData ? "growth" : "starter";
+  });
+
+  // Sync plan if demo mode changes or clean workspace reset occurs
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("calyx_active_plan");
+      if (saved) {
+        setActivePlanId(saved);
+      } else {
+        setActivePlanId(isDemoData ? "growth" : "starter");
+      }
+    }
+  }, [isDemoData]);
 
   const isAnnual = billingCycle === "annual";
 
   const handleUpgradeSuccess = (plan: PlanTier) => {
     setActivePlanId(plan.id);
+    try {
+      localStorage.setItem("calyx_active_plan", plan.id);
+    } catch {
+      // ignore
+    }
   };
+
+  const planLimits: Record<
+    string,
+    { maxSeats: number; maxMRR: number; maxMRRLabel: string; maxWebhooks: number; maxWebhooksLabel: string }
+  > = {
+    starter: {
+      maxSeats: 3,
+      maxMRR: 10000,
+      maxMRRLabel: "$10k",
+      maxWebhooks: 50000,
+      maxWebhooksLabel: "50k",
+    },
+    growth: {
+      maxSeats: 15,
+      maxMRR: 100000,
+      maxMRRLabel: "$100k",
+      maxWebhooks: 500000,
+      maxWebhooksLabel: "500k",
+    },
+    scale: {
+      maxSeats: 50,
+      maxMRR: 500000,
+      maxMRRLabel: "Unlimited",
+      maxWebhooks: 2000000,
+      maxWebhooksLabel: "2M",
+    },
+  };
+
+  const currentLimit = planLimits[activePlanId] || planLimits.starter;
+
+  // Quota 1: Team Seats
+  const seatsUsed = isDemoData ? 14 : 1;
+  const seatsMax = isDemoData ? 20 : currentLimit.maxSeats;
+  const seatsRemaining = Math.max(0, seatsMax - seatsUsed);
+  const seatsPercent = Math.min(100, Math.round((seatsUsed / seatsMax) * 100));
+
+  // Quota 2: Tracked MRR
+  const mrrDisplay = isDemoData
+    ? "$48.2k / $100k"
+    : `${formatMoneyWithFX(liveMRR)} / ${currentLimit.maxMRRLabel}`;
+  const mrrPercent = isDemoData
+    ? 48
+    : currentLimit.maxMRR > 0
+    ? Math.min(100, Math.round((liveMRR / currentLimit.maxMRR) * 100))
+    : 0;
+  const mrrSubtext = isDemoData
+    ? "48% capacity utilized"
+    : `${mrrPercent}% capacity utilized`;
+
+  // Quota 3: API Ingestion / Webhooks
+  const webhooksUsed = isDemoData ? 184000 : dispatchedEventsCount;
+  const webhooksMax = isDemoData ? 500000 : currentLimit.maxWebhooks;
+  const webhooksDisplay = isDemoData
+    ? "184k / 500k"
+    : `${webhooksUsed.toLocaleString()} / ${currentLimit.maxWebhooksLabel}`;
+  const webhooksRemaining = Math.max(0, webhooksMax - webhooksUsed);
+  const webhooksPercent = isDemoData
+    ? 36.8
+    : Math.min(100, Math.round((webhooksUsed / webhooksMax) * 100));
+  const webhooksSubtext = isDemoData
+    ? "316,000 events remaining"
+    : `${webhooksRemaining.toLocaleString()} events remaining`;
+
+  // Renewal Date
+  const renewalBadge = React.useMemo(() => {
+    if (isDemoData) return "Renews May 1, 2026";
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return `Renews ${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  }, [isDemoData]);
 
   return (
     <div className="space-y-8">
@@ -91,7 +192,7 @@ export default function SubscriptionsPage() {
             </p>
           </div>
           <span className="text-xs font-mono font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg self-start">
-            Renews May 1, 2026
+            {renewalBadge}
           </span>
         </div>
 
@@ -103,12 +204,15 @@ export default function SubscriptionsPage() {
                 <Users className="w-3.5 h-3.5 text-stone-500" />
                 <span>Team Seats</span>
               </span>
-              <span className="font-mono text-stone-900">14 / 20 used</span>
+              <span className="font-mono text-stone-900">{seatsUsed} / {seatsMax} used</span>
             </div>
             <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#2D5A43] h-full rounded-full" style={{ width: "70%" }} />
+              <div
+                className="bg-[#2D5A43] h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(seatsUsed > 0 ? 5 : 0, seatsPercent)}%` }}
+              />
             </div>
-            <div className="text-[11px] text-stone-400 mt-1.5">6 seats remaining</div>
+            <div className="text-[11px] text-stone-400 mt-1.5">{seatsRemaining} seats remaining</div>
           </div>
 
           {/* Quota 2: Tracked MRR */}
@@ -118,12 +222,15 @@ export default function SubscriptionsPage() {
                 <Zap className="w-3.5 h-3.5 text-stone-500" />
                 <span>Tracked MRR</span>
               </span>
-              <span className="font-mono text-stone-900">$48.2k / $100k</span>
+              <span className="font-mono text-stone-900">{mrrDisplay}</span>
             </div>
             <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#7FA987] h-full rounded-full" style={{ width: "48%" }} />
+              <div
+                className="bg-[#7FA987] h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(mrrPercent > 0 ? 3 : 0, mrrPercent)}%` }}
+              />
             </div>
-            <div className="text-[11px] text-stone-400 mt-1.5">48% capacity utilized</div>
+            <div className="text-[11px] text-stone-400 mt-1.5">{mrrSubtext}</div>
           </div>
 
           {/* Quota 3: API Ingestion */}
@@ -133,12 +240,15 @@ export default function SubscriptionsPage() {
                 <HardDrive className="w-3.5 h-3.5 text-stone-500" />
                 <span>Monthly Webhooks</span>
               </span>
-              <span className="font-mono text-stone-900">184k / 500k</span>
+              <span className="font-mono text-stone-900">{webhooksDisplay}</span>
             </div>
             <div className="w-full bg-stone-200 h-2 rounded-full overflow-hidden">
-              <div className="bg-[#2D5A43] h-full rounded-full" style={{ width: "36.8%" }} />
+              <div
+                className="bg-[#2D5A43] h-full rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(webhooksUsed > 0 ? 2 : 0, webhooksPercent)}%` }}
+              />
             </div>
-            <div className="text-[11px] text-stone-400 mt-1.5">316,000 events remaining</div>
+            <div className="text-[11px] text-stone-400 mt-1.5">{webhooksSubtext}</div>
           </div>
         </div>
       </div>
