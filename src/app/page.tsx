@@ -19,7 +19,6 @@ import {
   Plus,
   RefreshCw,
   Lock,
-  Sparkles,
   RotateCcw,
 } from "lucide-react";
 
@@ -159,10 +158,9 @@ export default function DashboardOverview() {
                   type: "success",
                 });
               }}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-[#2D5A43] hover:text-[#1F4231] underline cursor-pointer"
+              className="text-xs font-semibold text-[#2D5A43] hover:text-[#1F4231] underline cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Load Sample Data</span>
+              Load Sample Data
             </button>
             <span className="text-stone-300">|</span>
             <button

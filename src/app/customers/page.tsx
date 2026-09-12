@@ -18,7 +18,6 @@ import {
   Mail,
   User,
   X,
-  Sparkles,
 } from "lucide-react";
 
 export default function CustomersPage() {
@@ -257,10 +256,9 @@ export default function CustomersPage() {
                               type: "success",
                             });
                           }}
-                          className="inline-flex items-center gap-1 px-4 py-2 bg-white border border-[#E8E6E0] text-xs font-semibold text-stone-700 rounded-xl hover:bg-[#FAF9F6] transition-colors cursor-pointer"
+                          className="px-4 py-2 bg-white border border-[#E8E6E0] text-xs font-semibold text-stone-700 rounded-xl hover:bg-[#FAF9F6] transition-colors cursor-pointer"
                         >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span>Load Sample Data</span>
+                          Load Sample Data
                         </button>
                       </div>
                     </div>
