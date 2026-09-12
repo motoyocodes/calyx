@@ -7,9 +7,19 @@ import { TrendingUp, BarChart3, Calendar, Layers } from "lucide-react";
 
 interface RevenueChartProps {
   loading?: boolean;
+  isEmpty?: boolean;
+  companyName?: string;
+  onCreateInvoice?: () => void;
+  onLoadDemo?: () => void;
 }
 
-export default function RevenueChart({ loading = false }: RevenueChartProps) {
+export default function RevenueChart({
+  loading = false,
+  isEmpty = false,
+  companyName,
+  onCreateInvoice,
+  onLoadDemo,
+}: RevenueChartProps) {
   const [activeMetric, setActiveMetric] = useState<"mrr" | "netNew" | "churn">("mrr");
   const [hoveredMonth, setHoveredMonth] = useState<RevenueMonth | null>(null);
 
@@ -24,6 +34,54 @@ export default function RevenueChart({ loading = false }: RevenueChartProps) {
           <div className="h-8 w-44 bg-stone-200 rounded-xl animate-shimmer" />
         </div>
         <div className="h-64 w-full bg-stone-100 rounded-xl animate-shimmer" />
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="bg-white p-6 rounded-2xl border border-[#E8E6E0] flex flex-col justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#F0EFEA]">
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-stone-900">Revenue Performance</h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-stone-100 text-stone-600 border border-stone-200">
+                New Workspace
+              </span>
+            </div>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Live recurring subscription metrics for {companyName || "your organization"}.
+            </p>
+          </div>
+        </div>
+
+        <div className="py-12 px-4 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#2D5A43] flex items-center justify-center mb-3">
+            <BarChart3 className="w-6 h-6" />
+          </div>
+          <h4 className="text-sm font-bold text-stone-900">No Revenue Cohorts Recorded Yet</h4>
+          <p className="text-xs text-stone-500 max-w-sm mt-1 leading-relaxed">
+            As you issue customer invoices or connect subscriptions, your monthly recurring revenue (MRR), expansion, and churn cohorts will chart here automatically.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+            {onCreateInvoice && (
+              <button
+                onClick={onCreateInvoice}
+                className="px-4 py-2 bg-[#2D5A43] hover:bg-[#1F4231] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                + Create First Invoice
+              </button>
+            )}
+            {onLoadDemo && (
+              <button
+                onClick={onLoadDemo}
+                className="px-3.5 py-2 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold rounded-xl border border-stone-200 transition-colors cursor-pointer"
+              >
+                Load Sample Cohorts
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

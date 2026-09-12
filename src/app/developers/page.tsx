@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useUIState } from "@/context/UIStateContext";
+import { useAuth } from "@/context/AuthContext";
 import { WEBHOOK_TEMPLATES, WebhookTemplate } from "@/lib/data";
 import {
   Code2,
@@ -22,6 +23,7 @@ import {
 
 export default function DevelopersPage() {
   const { dispatchWebhookSimulation, addToast, dispatchedEventsCount } = useUIState();
+  const { user } = useAuth();
 
   const [selectedTemplateId, setSelectedTemplateId] = useState(WEBHOOK_TEMPLATES[0].id);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -83,7 +85,7 @@ export default function DevelopersPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-          <span>Synthetix AI</span>
+          <span>{user?.company || "Workspace"}</span>
           <span>/</span>
           <span className="text-stone-900 font-semibold">Developers</span>
         </div>

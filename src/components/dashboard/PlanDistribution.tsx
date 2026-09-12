@@ -6,9 +6,10 @@ import Link from "next/link";
 
 interface PlanDistributionProps {
   loading?: boolean;
+  isEmpty?: boolean;
 }
 
-export default function PlanDistribution({ loading = false }: PlanDistributionProps) {
+export default function PlanDistribution({ loading = false, isEmpty = false }: PlanDistributionProps) {
   if (loading) {
     return (
       <div className="bg-white p-6 rounded-2xl border border-[#E8E6E0]">
@@ -18,6 +19,60 @@ export default function PlanDistribution({ loading = false }: PlanDistributionPr
         <div className="space-y-3">
           <div className="h-8 w-full bg-stone-100 rounded-xl animate-shimmer" />
           <div className="h-8 w-full bg-stone-100 rounded-xl animate-shimmer" />
+        </div>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="bg-white p-6 rounded-2xl border border-[#E8E6E0] flex flex-col justify-between">
+        <div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <PieChart className="w-4 h-4 text-[#2D5A43]" />
+              <h3 className="text-base font-bold text-stone-900">Plan Distribution</h3>
+            </div>
+            <Link
+              href="/subscriptions"
+              className="text-xs font-semibold text-[#2D5A43] hover:text-[#1F4231] flex items-center gap-1 group"
+            >
+              <span>Manage</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          </div>
+          <p className="text-xs text-stone-500 mt-1">
+            Revenue contribution grouped by subscription package tier.
+          </p>
+
+          <div className="w-full h-3 bg-stone-100 rounded-full overflow-hidden flex mt-5 p-0.5 border border-[#E8E6E0]">
+            <div className="w-full h-full bg-stone-200/60 rounded-full" />
+          </div>
+
+          <div className="mt-8 text-center py-6 px-4 rounded-xl bg-[#FAF9F6] border border-dashed border-[#E8E6E0]">
+            <div className="w-10 h-10 rounded-full bg-white border border-[#E8E6E0] flex items-center justify-center mx-auto mb-3 shadow-xs">
+              <PieChart className="w-5 h-5 text-stone-400" />
+            </div>
+            <p className="text-xs font-semibold text-stone-700">No active subscription tiers</p>
+            <p className="text-[11px] text-stone-500 mt-1 max-w-[240px] mx-auto leading-relaxed">
+              Tier breakdown will automatically calculate as recurring customers and invoices are added.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-5 border-t border-[#F0EFEA]">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E8E6E0]">
+              <div className="text-[10px] font-mono uppercase text-stone-400">Quick Ratio</div>
+              <div className="text-base font-bold text-stone-400 mt-0.5 tabular-nums">—</div>
+              <div className="text-[10px] text-stone-400 font-medium mt-0.5">Awaiting ledger data</div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E8E6E0]">
+              <div className="text-[10px] font-mono uppercase text-stone-400">LTV / CAC</div>
+              <div className="text-base font-bold text-stone-400 mt-0.5 tabular-nums">—</div>
+              <div className="text-[10px] text-stone-400 font-medium mt-0.5">Awaiting ledger data</div>
+            </div>
+          </div>
         </div>
       </div>
     );

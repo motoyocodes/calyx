@@ -243,6 +243,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updatedAccounts = [...accounts, newAccount];
     try {
       localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updatedAccounts));
+      // Initialize a clean, fresh workspace for the new company (no preloaded fake invoices)
+      localStorage.setItem("calyx_invoices", JSON.stringify([]));
+      localStorage.setItem("calyx_customers", JSON.stringify([]));
+      localStorage.setItem(
+        "calyx_audit_logs",
+        JSON.stringify([
+          {
+            id: `aud-${Date.now()}`,
+            timestamp: "Just now",
+            event: "auth.signup_success",
+            category: "auth",
+            actor: newAccount.name,
+            actorRole: newAccount.role === "admin" ? "Admin" : "Billing",
+            ipAddress: "127.0.0.1 (Local Session)",
+            target: `${newAccount.company} Workspace`,
+            severity: "info",
+            details: `Created new organization workspace for "${newAccount.company}".`,
+          },
+        ])
+      );
+      localStorage.removeItem("calyx_demo_mode");
       setHasAccounts(true);
     } catch {
       // ignore

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useUIState } from "@/context/UIStateContext";
+import { useAuth } from "@/context/AuthContext";
 import { AuditSeverity, AuditLogEntry } from "@/lib/data";
 import { formatAuditEventName } from "@/lib/utils";
 import {
@@ -20,6 +21,7 @@ import {
 
 export default function AuditPage() {
   const { auditLogs, exportAuditLogsToCSV, addToast } = useUIState();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSeverity, setSelectedSeverity] = useState<"all" | AuditSeverity>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -50,7 +52,7 @@ export default function AuditPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-            <span>Synthetix AI</span>
+            <span>{user?.company || "Workspace"}</span>
             <span>/</span>
             <span className="text-stone-900 font-semibold">Security & Compliance</span>
           </div>

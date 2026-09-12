@@ -31,9 +31,13 @@ export default function SettingsPage() {
   const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
   const [showDunningModal, setShowDunningModal] = useState(false);
 
-  // Form states
-  const [companyName, setCompanyName] = useState("Synthetix AI, Inc.");
-  const [billingEmail, setBillingEmail] = useState("billing@synthetix.ai");
+  // Form states initialized with logged in company/user
+  const [companyName, setCompanyName] = useState(
+    user?.company ? `${user.company}, Inc.` : "My Company, Inc."
+  );
+  const [billingEmail, setBillingEmail] = useState(
+    user?.email || "billing@company.com"
+  );
   const [address, setAddress] = useState("548 Market Street, Suite 9200");
   const [city, setCity] = useState("San Francisco");
   const [postalCode, setPostalCode] = useState("94104");
@@ -45,8 +49,23 @@ export default function SettingsPage() {
   const [emailReceipts, setEmailReceipts] = useState(true);
   const [dunningAlerts, setDunningAlerts] = useState(true);
 
-  // Team state
-  const [team, setTeam] = useState<TeamMember[]>(TEAM_MEMBERS);
+  // Team state - initialized with the current authenticated user only
+  const [team, setTeam] = useState<TeamMember[]>(() => {
+    if (user) {
+      return [
+        {
+          id: user.id || "user-owner",
+          name: user.name || "Workspace Admin",
+          email: user.email || "admin@company.com",
+          role: (user.role === "admin" ? "Owner" : "Billing Admin") as TeamMember["role"],
+          avatar: user.avatar || (user.name ? user.name.slice(0, 2).toUpperCase() : "WA"),
+          status: "Active",
+          joinedDate: "Today",
+        },
+      ];
+    }
+    return TEAM_MEMBERS;
+  });
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
@@ -97,7 +116,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-          <span>Synthetix AI</span>
+          <span>{user?.company || "Workspace"}</span>
           <span>/</span>
           <span className="text-stone-900 font-semibold">Settings</span>
         </div>
@@ -650,7 +669,7 @@ export default function SettingsPage() {
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="alex@synthetix.ai"
+                  placeholder="colleague@company.com"
                   className="w-full px-3.5 py-2 text-xs rounded-xl bg-[#FAF9F6] border border-[#E8E6E0] focus:border-[#2D5A43] focus:bg-white outline-hidden text-stone-900"
                 />
               </div>

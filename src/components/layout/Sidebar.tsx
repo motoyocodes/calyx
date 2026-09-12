@@ -31,7 +31,7 @@ interface SidebarProps {
 export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { invoices, customers, auditLogs, formatMoneyWithFX, addToast } = useUIState();
+  const { invoices, customers, auditLogs, formatMoneyWithFX, liveMRR, addToast } = useUIState();
   const { user, logout } = useAuth();
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
 
@@ -49,13 +49,13 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
           name: "Invoices",
           href: "/invoices",
           icon: Receipt,
-          badge: invoices.length.toString(),
+          badge: invoices.length > 0 ? invoices.length.toString() : "0",
         },
         {
           name: "Customers",
           href: "/customers",
           icon: Users,
-          badge: customers.length.toString(),
+          badge: customers.length > 0 ? customers.length.toString() : "0",
         },
         {
           name: "Plans & Tiers",
@@ -72,7 +72,7 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
           name: "Audit Trail",
           href: "/audit",
           icon: ShieldCheck,
-          badge: "Live",
+          badge: auditLogs.length > 0 ? "Live" : null,
         },
         {
           name: "Settings",
@@ -124,8 +124,12 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
                 <Building2 className="w-4 h-4 text-emerald-200" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-semibold text-stone-900 truncate">Synthetix AI</div>
-                <div className="text-[11px] text-stone-500 font-medium">Scale Tier • 25 seats</div>
+                <div className="text-xs font-semibold text-stone-900 truncate">
+                  {user?.company || "My Organization"}
+                </div>
+                <div className="text-[11px] text-stone-500 font-medium">
+                  {invoices.length > 0 ? "Scale Tier • 25 seats" : "Starter Workspace • Active"}
+                </div>
               </div>
             </div>
             <ChevronDown className="w-4 h-4 text-stone-400 shrink-0" />
@@ -138,7 +142,9 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
               </div>
               <div className="p-2 rounded-lg bg-emerald-50/70 border border-emerald-200/50 flex items-center justify-between cursor-pointer">
                 <div>
-                  <div className="text-xs font-semibold text-stone-900">Synthetix AI</div>
+                  <div className="text-xs font-semibold text-stone-900">
+                    {user?.company || "My Organization"}
+                  </div>
                   <div className="text-[10px] text-emerald-700 font-medium">Production active</div>
                 </div>
               </div>
@@ -211,21 +217,23 @@ export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarPr
             Monthly Run Rate
           </span>
           <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
-            +14.2%
+            {liveMRR > 0 ? "+14.2%" : "Active"}
           </span>
         </div>
         <div className="text-base font-bold text-[#1A1C1A] tracking-tight tabular-nums">
-          {formatMoneyWithFX(48250, false)}<span className="text-xs font-normal text-stone-500"> /mo</span>
+          {formatMoneyWithFX(liveMRR, false)}<span className="text-xs font-normal text-stone-500"> /mo</span>
         </div>
         <div className="w-full bg-[#D5E3DA] h-1.5 rounded-full mt-2 overflow-hidden">
           <div
             className="bg-[#2D5A43] h-full rounded-full transition-all duration-500"
-            style={{ width: "84%" }}
+            style={{ width: `${liveMRR > 0 ? Math.min(100, Math.round((liveMRR / 50000) * 100)) : 0}%` }}
           ></div>
         </div>
         <div className="flex justify-between items-center text-[10px] text-stone-500 mt-1.5">
           <span>Target: {formatMoneyWithFX(50000, false)}</span>
-          <span className="font-semibold text-emerald-700">84% achieved</span>
+          <span className="font-semibold text-emerald-700">
+            {liveMRR > 0 ? `${Math.min(100, Math.round((liveMRR / 50000) * 100))}% achieved` : "0% achieved"}
+          </span>
         </div>
       </div>
 

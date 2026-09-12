@@ -5,6 +5,7 @@ import { useUIState } from "@/context/UIStateContext";
 import { PLAN_TIERS, PlanTier } from "@/lib/data";
 import { formatCurrency } from "@/lib/utils";
 import UpgradeModal from "@/components/subscriptions/UpgradeModal";
+import { useAuth } from "@/context/AuthContext";
 import {
   Check,
   Zap,
@@ -17,6 +18,7 @@ import {
 
 export default function SubscriptionsPage() {
   const { billingCycle, setBillingCycle, addToast } = useUIState();
+  const { user } = useAuth();
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<PlanTier | null>(null);
   const [activePlanId, setActivePlanId] = useState<string>("growth");
 
@@ -32,7 +34,7 @@ export default function SubscriptionsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-            <span>Synthetix AI</span>
+            <span>{user?.company || "Workspace"}</span>
             <span>/</span>
             <span className="text-stone-900 font-semibold">Plans & Billing</span>
           </div>

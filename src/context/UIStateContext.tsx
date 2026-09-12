@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from "react";
 import {
   SAMPLE_INVOICES,
   Invoice,
@@ -58,6 +58,17 @@ interface UIStateContextType {
   dispatchWebhookSimulation: (
     templateId: string
   ) => Promise<{ success: boolean; template: WebhookTemplate; responseTimeMs: number; signature: string }>;
+
+  // Sandbox & Clean Workspace Controls
+  isDemoData: boolean;
+  loadDemoData: () => void;
+  resetWorkspace: () => void;
+
+  // Live Dynamic Telemetry Calculated from Workspace
+  liveMRR: number;
+  liveSubscribers: number;
+  liveARPU: number;
+  liveChurn: string;
 }
 
 const UIStateContext = createContext<UIStateContextType | undefined>(undefined);
@@ -66,19 +77,27 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const [activeCurrency, setActiveCurrency] = useState<CurrencyCode>("USD");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>(SAMPLE_INVOICES);
-  const [customers, setCustomers] = useState<Customer[]>(SAMPLE_CUSTOMERS);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(INITIAL_AUDIT_LOGS);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [dispatchedEventsCount, setDispatchedEventsCount] = useState(0);
+  const [isDemoData, setIsDemoData] = useState<boolean>(false);
 
   // Load persisted state on mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
+        const isDemo = localStorage.getItem("calyx_demo_mode") === "true";
+        setIsDemoData(isDemo);
+
         const savedInvoices = localStorage.getItem("calyx_invoices");
-        if (savedInvoices) {
+        if (savedInvoices !== null) {
           const parsed = JSON.parse(savedInvoices);
-          if (Array.isArray(parsed) && parsed.length > 0) setInvoices(parsed);
+          if (Array.isArray(parsed)) setInvoices(parsed);
+        } else if (isDemo) {
+          setInvoices(SAMPLE_INVOICES);
+        } else {
+          setInvoices([]);
         }
 
         const savedCurrency = localStorage.getItem("calyx_currency") as CurrencyCode;
@@ -87,15 +106,19 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
         }
 
         const savedCustomers = localStorage.getItem("calyx_customers");
-        if (savedCustomers) {
+        if (savedCustomers !== null) {
           const parsed = JSON.parse(savedCustomers);
-          if (Array.isArray(parsed) && parsed.length > 0) setCustomers(parsed);
+          if (Array.isArray(parsed)) setCustomers(parsed);
+        } else if (isDemo) {
+          setCustomers(SAMPLE_CUSTOMERS);
+        } else {
+          setCustomers([]);
         }
 
         const savedAudit = localStorage.getItem("calyx_audit_logs");
-        if (savedAudit) {
+        if (savedAudit !== null) {
           const parsed = JSON.parse(savedAudit);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             const cleaned = parsed.map((item: any) => ({
               ...item,
               actor:
@@ -107,12 +130,83 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
             }));
             setAuditLogs(cleaned);
           }
+        } else if (isDemo) {
+          setAuditLogs(INITIAL_AUDIT_LOGS);
+        } else {
+          setAuditLogs([]);
         }
       } catch {
         // fallback
       }
     }
   }, []);
+
+  // Live dynamic calculations based on real workspace content
+  const liveMRR = useMemo(() => {
+    if (customers.length > 0) {
+      return customers
+        .filter((c) => c.status === "active")
+        .reduce((sum, c) => sum + (c.mrr || 0), 0);
+    }
+    return invoices
+      .filter((i) => i.status === "paid" || i.status === "pending")
+      .reduce((sum, i) => sum + i.amount, 0);
+  }, [customers, invoices]);
+
+  const liveSubscribers = useMemo(() => {
+    if (customers.length > 0) {
+      return customers.filter((c) => c.status === "active").length;
+    }
+    return invoices.length;
+  }, [customers, invoices]);
+
+  const liveARPU = useMemo(() => {
+    return liveSubscribers > 0 ? liveMRR / liveSubscribers : 0;
+  }, [liveMRR, liveSubscribers]);
+
+  const liveChurn = useMemo(() => {
+    if (customers.length === 0) return "0.0%";
+    const atRisk = customers.filter((c) => c.status === "at_risk").length;
+    return `${((atRisk / customers.length) * 100).toFixed(1)}%`;
+  }, [customers]);
+
+  const loadDemoData = () => {
+    setInvoices(SAMPLE_INVOICES);
+    setCustomers(SAMPLE_CUSTOMERS);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setIsDemoData(true);
+    try {
+      localStorage.setItem("calyx_invoices", JSON.stringify(SAMPLE_INVOICES));
+      localStorage.setItem("calyx_customers", JSON.stringify(SAMPLE_CUSTOMERS));
+      localStorage.setItem("calyx_audit_logs", JSON.stringify(INITIAL_AUDIT_LOGS));
+      localStorage.setItem("calyx_demo_mode", "true");
+    } catch {
+      // ignore
+    }
+    addToast({
+      title: "Sample Sandbox Data Loaded",
+      description: "Populated sample invoices, customers, and cohorts for feature exploration.",
+      type: "info",
+    });
+  };
+
+  const resetWorkspace = () => {
+    setInvoices([]);
+    setCustomers([]);
+    setIsDemoData(false);
+    try {
+      localStorage.setItem("calyx_invoices", JSON.stringify([]));
+      localStorage.setItem("calyx_customers", JSON.stringify([]));
+      localStorage.removeItem("calyx_demo_mode");
+    } catch {
+      // ignore
+    }
+    addToast({
+      title: "Clean Workspace Active",
+      description: "Workspace reset to fresh state ready for your organization's real data.",
+      type: "success",
+    });
+  };
 
   const handleSetCurrency = (currency: CurrencyCode) => {
     setActiveCurrency(currency);
@@ -370,6 +464,13 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
         webhookTemplates: WEBHOOK_TEMPLATES,
         dispatchedEventsCount,
         dispatchWebhookSimulation,
+        isDemoData,
+        loadDemoData,
+        resetWorkspace,
+        liveMRR,
+        liveSubscribers,
+        liveARPU,
+        liveChurn,
       }}
     >
       {children}

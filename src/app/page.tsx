@@ -2,8 +2,8 @@
 
 import React, { useState } from "react";
 import { useUIState } from "@/context/UIStateContext";
-import { INITIAL_METRICS, SAMPLE_INVOICES, Invoice } from "@/lib/data";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { Invoice, MetricCardData } from "@/lib/data";
+import { formatDate } from "@/lib/utils";
 import MetricCard from "@/components/ui/MetricCard";
 import RevenueChart from "@/components/dashboard/RevenueChart";
 import PlanDistribution from "@/components/dashboard/PlanDistribution";
@@ -18,18 +18,36 @@ import {
   Receipt,
   Plus,
   RefreshCw,
-  TrendingUp,
   Lock,
+  Sparkles,
+  RotateCcw,
 } from "lucide-react";
 
 export default function DashboardOverview() {
-  const { addToast, invoices, addInvoice, deleteInvoice, formatMoneyWithFX } = useUIState();
-  const { hasPermission } = useAuth();
+  const {
+    addToast,
+    invoices,
+    customers,
+    addInvoice,
+    deleteInvoice,
+    formatMoneyWithFX,
+    isDemoData,
+    loadDemoData,
+    resetWorkspace,
+    liveMRR,
+    liveSubscribers,
+    liveARPU,
+    liveChurn,
+  } = useUIState();
+
+  const { user, hasPermission } = useAuth();
   const canCreate = hasPermission("create_invoice");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+
+  const isCleanSlate = invoices.length === 0 && !isDemoData;
 
   const handleCreateInvoice = (newInvoice: Invoice) => {
     addInvoice(newInvoice);
@@ -53,32 +71,115 @@ export default function DashboardOverview() {
     }, 600);
   };
 
-  // Dynamically convert currency metrics based on active global currency
-  const displayMetrics = INITIAL_METRICS.map((metric) => {
-    if (metric.id === "mrr") {
-      return {
-        ...metric,
-        value: formatMoneyWithFX(48250, false),
-        changeDescription: `+${formatMoneyWithFX(5980, false)} from last month`,
-      };
-    }
-    if (metric.id === "arpu") {
-      return {
-        ...metric,
-        value: formatMoneyWithFX(112.7, true),
-        changeDescription: `+${formatMoneyWithFX(5.2, true)} plan expansion`,
-      };
-    }
-    return metric;
-  });
+  // Dynamically compute display metrics based on live state
+  const displayMetrics: MetricCardData[] = [
+    {
+      id: "mrr",
+      title: "Monthly Recurring Revenue",
+      value: formatMoneyWithFX(liveMRR, false),
+      changePercent: isCleanSlate ? 0 : 14.2,
+      changeType: isCleanSlate ? "neutral" : "positive",
+      changeDescription: isCleanSlate ? "Awaiting ledger transactions" : `+${formatMoneyWithFX(5980, false)} from last month`,
+      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
+      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [38200, 39500, 41000, 42100, 43800, 45200, liveMRR || 48250],
+    },
+    {
+      id: "churn",
+      title: "Net Revenue Churn",
+      value: `${liveChurn.toFixed(1)}%`,
+      changePercent: isCleanSlate ? 0 : -0.4,
+      changeType: isCleanSlate ? "neutral" : "positive",
+      changeDescription: isCleanSlate ? "0.0% benchmark target" : "-0.4% lower than industry benchmark",
+      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
+      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [1.8, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1],
+    },
+    {
+      id: "active_subscribers",
+      title: "Active Subscriptions",
+      value: liveSubscribers.toString(),
+      changePercent: isCleanSlate ? 0 : 8.9,
+      changeType: isCleanSlate ? "neutral" : "positive",
+      changeDescription: isCleanSlate ? "Awaiting customer enrollment" : "+36 net new accounts",
+      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
+      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [360, 372, 385, 394, 405, 412, liveSubscribers || 428],
+    },
+    {
+      id: "arpu",
+      title: "Average Revenue Per User",
+      value: formatMoneyWithFX(liveARPU, true),
+      changePercent: isCleanSlate ? 0 : 4.8,
+      changeType: isCleanSlate ? "neutral" : "positive",
+      changeDescription: isCleanSlate ? "Calculated across active accounts" : `+${formatMoneyWithFX(5.2, true)} plan expansion`,
+      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
+      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [98, 102, 104, 107, 109, 110, liveARPU || 112.7],
+    },
+  ];
 
   return (
     <div className="space-y-8">
+      {/* Sandbox / Clean Workspace Banner */}
+      {isDemoData ? (
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-amber-900 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span className="font-semibold">Demo Sandbox Active:</span>
+            <span className="text-amber-800">Displaying sample ledger telemetry for evaluation.</span>
+          </div>
+          <button
+            onClick={() => {
+              resetWorkspace();
+              addToast({
+                title: "Clean Workspace Restored",
+                description: `Reset to clean 0-state ledger for ${user?.company || "your organization"}.`,
+                type: "info",
+              });
+            }}
+            className="inline-flex items-center gap-1 font-medium underline hover:text-amber-950 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span>Reset to Clean Workspace</span>
+          </button>
+        </div>
+      ) : isCleanSlate ? (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 rounded-xl bg-[#F4F7F4] border border-[#DDE7DF] text-stone-800 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2 h-2 rounded-full bg-[#2D5A43]" />
+            <div>
+              <span className="font-semibold text-stone-900">Welcome to {user?.company || "your workspace"}!</span>
+              <span className="text-stone-500 ml-1.5">Your billing ledger is clean and ready.</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                loadDemoData();
+                addToast({
+                  title: "Demo Telemetry Loaded",
+                  description: "Populated sample invoices, customers, and MRR metrics.",
+                  type: "success",
+                });
+              }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#2D5A43] hover:text-[#1F4231] underline cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Load Sample Data</span>
+            </button>
+            <span className="text-stone-300">|</span>
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="text-xs font-semibold text-stone-700 hover:text-stone-900 cursor-pointer"
+            >
+              + Create Invoice
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Page Title & Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-            <span>Synthetix AI</span>
+            <span>{user?.company || "Workspace"}</span>
             <span>/</span>
             <span className="text-stone-900 font-semibold">Overview</span>
           </div>
@@ -92,7 +193,7 @@ export default function DashboardOverview() {
           <button
             onClick={handleSyncData}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-[#E8E6E0] text-stone-700 hover:bg-[#FAF9F6] transition-colors"
+            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-white border border-[#E8E6E0] text-stone-700 hover:bg-[#FAF9F6] transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-stone-500 ${isRefreshing ? "animate-spin" : ""}`} />
             <span>{isRefreshing ? "Syncing..." : "Sync Live Data"}</span>
@@ -109,7 +210,7 @@ export default function DashboardOverview() {
           {canCreate ? (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#2D5A43] text-white hover:bg-[#1F4231] transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#2D5A43] text-white hover:bg-[#1F4231] transition-colors cursor-pointer shadow-xs"
             >
               <Plus className="w-4 h-4" />
               <span>Create Invoice</span>
@@ -146,10 +247,16 @@ export default function DashboardOverview() {
       {/* Revenue Performance Chart + Plan Distribution */}
       <section aria-label="Revenue Charts" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RevenueChart loading={isRefreshing} />
+          <RevenueChart
+            loading={isRefreshing}
+            isEmpty={isCleanSlate}
+            companyName={user?.company || "Your Company"}
+            onCreateInvoice={() => setIsCreateModalOpen(true)}
+            onLoadDemo={loadDemoData}
+          />
         </div>
         <div>
-          <PlanDistribution loading={isRefreshing} />
+          <PlanDistribution loading={isRefreshing} isEmpty={isCleanSlate} />
         </div>
       </section>
 
@@ -208,6 +315,29 @@ export default function DashboardOverview() {
                     </td>
                   </tr>
                 ))
+              ) : invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 px-5 text-center">
+                    <div className="max-w-xs mx-auto text-center">
+                      <div className="w-10 h-10 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center mx-auto mb-3">
+                        <Receipt className="w-5 h-5 text-stone-400" />
+                      </div>
+                      <p className="text-xs font-semibold text-stone-800">No invoices issued yet</p>
+                      <p className="text-[11px] text-stone-500 mt-1 mb-4 leading-relaxed">
+                        Create your first invoice or import billing telemetry to begin tracking revenue.
+                      </p>
+                      {canCreate && (
+                        <button
+                          onClick={() => setIsCreateModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#2D5A43] text-white text-xs font-medium hover:bg-[#1F4231] transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Create First Invoice</span>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 invoices.slice(0, 4).map((invoice) => (
                   <tr

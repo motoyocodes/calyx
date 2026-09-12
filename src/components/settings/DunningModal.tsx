@@ -223,7 +223,7 @@ export default function DunningModal({ isOpen, onClose }: DunningModalProps) {
                 <div className="flex text-stone-500 text-[11px]">
                   <span className="w-16 font-semibold text-stone-600">Subject:</span>
                   <span className="text-stone-900 font-medium">
-                    Payment failed for Synthetix AI — Update billing information
+                    Payment failed for {user?.company || "Workspace"} — Update billing information
                   </span>
                 </div>
               </div>
@@ -249,7 +249,7 @@ export default function DunningModal({ isOpen, onClose }: DunningModalProps) {
                   </div>
                 </div>
                 <p className="text-[11px] text-stone-400 pt-2 border-t border-[#F0EFEA]">
-                  Synthetix AI, Inc. • Automated Billing Telemetry • Secure 256-bit TLS Gateway
+                  {user?.company || "Organization"} • Automated Billing Telemetry • Secure 256-bit TLS Gateway
                 </p>
               </div>
             </div>

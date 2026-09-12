@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 export default function InvoicesPage() {
-  const { addToast, invoices, addInvoice, deleteInvoice, deleteInvoices, formatMoneyWithFX } = useUIState();
+  const { addToast, invoices, addInvoice, deleteInvoice, deleteInvoices, formatMoneyWithFX, loadDemoData, isDemoData } = useUIState();
   const { user, hasPermission } = useAuth();
   const canCreate = hasPermission("create_invoice");
   const canDelete = hasPermission("delete_invoice");
@@ -240,7 +240,7 @@ export default function InvoicesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-            <span>Synthetix AI</span>
+            <span>{user?.company || "Workspace"}</span>
             <span>/</span>
             <span className="text-stone-900 font-semibold">Invoices</span>
           </div>
@@ -352,7 +352,41 @@ export default function InvoicesPage() {
         </div>
 
         {/* Table Content */}
-        {filteredInvoices.length === 0 ? (
+        {invoices.length === 0 ? (
+          <div className="p-16 text-center max-w-md mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center mx-auto text-stone-400 mb-4 shadow-xs">
+              <Inbox className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-bold text-stone-900">Your invoice ledger is empty</h3>
+            <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">
+              No invoices issued yet for {user?.company || "your organization"}. Create a new invoice or populate sample sandbox telemetry to explore the system.
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-6">
+              {canCreate && (
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2D5A43] text-white text-xs font-semibold rounded-xl hover:bg-[#1F4231] transition-colors cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create First Invoice</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  loadDemoData();
+                  addToast({
+                    title: "Demo Telemetry Loaded",
+                    description: "Populated sample invoices, customers, and MRR metrics.",
+                    type: "success",
+                  });
+                }}
+                className="px-4 py-2 bg-white border border-[#E8E6E0] text-xs font-semibold text-stone-700 rounded-xl hover:bg-[#FAF9F6] transition-colors cursor-pointer"
+              >
+                Load Sample Data
+              </button>
+            </div>
+          </div>
+        ) : filteredInvoices.length === 0 ? (
           <div className="p-12 text-center max-w-sm mx-auto">
             <div className="w-12 h-12 rounded-2xl bg-stone-100 flex items-center justify-center mx-auto text-stone-400 mb-3">
               <Inbox className="w-6 h-6" />

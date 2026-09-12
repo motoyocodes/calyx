@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { useUIState } from "@/context/UIStateContext";
+import { useAuth } from "@/context/AuthContext";
 import { Customer, CustomerHealth } from "@/lib/data";
 import CustomerDrawer from "@/components/customers/CustomerDrawer";
 import {
@@ -17,10 +18,12 @@ import {
   Mail,
   User,
   X,
+  Sparkles,
 } from "lucide-react";
 
 export default function CustomersPage() {
-  const { customers, addCustomer, formatMoneyWithFX, addToast } = useUIState();
+  const { customers, addCustomer, formatMoneyWithFX, addToast, loadDemoData } = useUIState();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | CustomerHealth>("all");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -97,7 +100,7 @@ export default function CustomersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-stone-500 font-medium">
-            <span>Synthetix AI</span>
+            <span>{user?.company || "Workspace"}</span>
             <span>/</span>
             <span className="text-stone-900 font-semibold">Customers</span>
           </div>
@@ -111,7 +114,7 @@ export default function CustomersPage() {
 
         <button
           onClick={() => setIsAddModalOpen(true)}
-          className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#2D5A43] text-white hover:bg-[#1F4231] transition-colors cursor-pointer self-start sm:self-auto"
+          className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-xl bg-[#2D5A43] text-white hover:bg-[#1F4231] transition-colors cursor-pointer self-start sm:self-auto shadow-xs"
         >
           <Plus className="w-4 h-4" />
           <span>Add Customer</span>
@@ -123,15 +126,15 @@ export default function CustomersPage() {
         <div className="bg-white rounded-2xl border border-[#E8E6E0] p-5 shadow-xs">
           <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
             <span>Active Accounts</span>
-            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold">
-              Healthy
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${customers.length > 0 ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-600"}`}>
+              {customers.length > 0 ? "Healthy" : "Clean Ledger"}
             </span>
           </div>
           <div className="text-2xl font-bold text-stone-900 mt-2 tracking-tight tabular-nums">
             {activeCount} <span className="text-xs text-stone-400 font-normal">/ {customers.length} total</span>
           </div>
           <p className="text-[11px] text-stone-500 mt-1">
-            {Math.round((activeCount / (customers.length || 1)) * 100)}% active subscription rate
+            {customers.length > 0 ? `${Math.round((activeCount / customers.length) * 100)}% active subscription rate` : "Awaiting client onboarding"}
           </p>
         </div>
 
@@ -143,7 +146,9 @@ export default function CustomersPage() {
           <div className="text-2xl font-bold text-stone-900 mt-2 tracking-tight tabular-nums">
             {formatMoneyWithFX(totalPortfolioMRR)}
           </div>
-          <p className="text-[11px] text-stone-500 mt-1">Monthly recurring run rate</p>
+          <p className="text-[11px] text-stone-500 mt-1">
+            {customers.length > 0 ? "Monthly recurring run rate" : "Calculated from active client contracts"}
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl border border-[#E8E6E0] p-5 shadow-xs">
@@ -151,10 +156,12 @@ export default function CustomersPage() {
             <span>Average Lifetime Value</span>
             <span className="text-[10px] font-semibold text-stone-400">12-Mo LTV</span>
           </div>
-          <div className="text-2xl font-bold text-emerald-800 mt-2 tracking-tight tabular-nums">
+          <div className="text-2xl font-bold text-[#2D5A43] mt-2 tracking-tight tabular-nums">
             {formatMoneyWithFX(averageLTV)}
           </div>
-          <p className="text-[11px] text-stone-500 mt-1">Across all tiers & custom SLA contracts</p>
+          <p className="text-[11px] text-stone-500 mt-1">
+            {customers.length > 0 ? "Across all tiers & custom contracts" : "Awaiting billing contract history"}
+          </p>
         </div>
       </div>
 
@@ -222,7 +229,44 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F0EFEA] text-xs">
-              {filteredCustomers.length === 0 ? (
+              {customers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center">
+                    <div className="max-w-md mx-auto text-center">
+                      <div className="w-12 h-12 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center mx-auto text-stone-400 mb-4 shadow-xs">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-base font-bold text-stone-900">Your customer directory is empty</h3>
+                      <p className="text-xs text-stone-500 mt-1.5 leading-relaxed">
+                        No customer accounts added yet for {user?.company || "your organization"}. Add a client to track subscription contracts or load sample telemetry.
+                      </p>
+                      <div className="flex items-center justify-center gap-3 mt-6">
+                        <button
+                          onClick={() => setIsAddModalOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#2D5A43] text-white text-xs font-semibold rounded-xl hover:bg-[#1F4231] transition-colors cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add First Customer</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            loadDemoData();
+                            addToast({
+                              title: "Demo Telemetry Loaded",
+                              description: "Populated sample invoices, customers, and MRR metrics.",
+                              type: "success",
+                            });
+                          }}
+                          className="inline-flex items-center gap-1 px-4 py-2 bg-white border border-[#E8E6E0] text-xs font-semibold text-stone-700 rounded-xl hover:bg-[#FAF9F6] transition-colors cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Load Sample Data</span>
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-stone-400">
                     No customer accounts match your search filters.
