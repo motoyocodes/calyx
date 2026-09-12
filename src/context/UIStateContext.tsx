@@ -68,7 +68,7 @@ interface UIStateContextType {
   liveMRR: number;
   liveSubscribers: number;
   liveARPU: number;
-  liveChurn: string;
+  liveChurn: number;
 }
 
 const UIStateContext = createContext<UIStateContextType | undefined>(undefined);
@@ -165,9 +165,9 @@ export function UIStateProvider({ children }: { children: ReactNode }) {
   }, [liveMRR, liveSubscribers]);
 
   const liveChurn = useMemo(() => {
-    if (customers.length === 0) return "0.0%";
+    if (customers.length === 0) return 0;
     const atRisk = customers.filter((c) => c.status === "at_risk").length;
-    return `${((atRisk / customers.length) * 100).toFixed(1)}%`;
+    return Number(((atRisk / customers.length) * 100).toFixed(1));
   }, [customers]);
 
   const loadDemoData = () => {
