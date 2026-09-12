@@ -1,15 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { PieChart, Zap, ShieldCheck, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { Invoice } from "@/lib/data";
 
 interface PlanDistributionProps {
   loading?: boolean;
   isEmpty?: boolean;
+  isDemo?: boolean;
+  invoices?: Invoice[];
 }
 
-export default function PlanDistribution({ loading = false, isEmpty = false }: PlanDistributionProps) {
+export default function PlanDistribution({
+  loading = false,
+  isEmpty = false,
+  isDemo = false,
+  invoices = [],
+}: PlanDistributionProps) {
   if (loading) {
     return (
       <div className="bg-white p-6 rounded-2xl border border-[#E8E6E0]">
@@ -78,11 +86,45 @@ export default function PlanDistribution({ loading = false, isEmpty = false }: P
     );
   }
 
-  const tiers = [
-    { name: "Scale Tier", percent: 52, amount: "$25,090", color: "bg-[#2D5A43]", text: "text-[#2D5A43]" },
-    { name: "Growth Tier", percent: 36, amount: "$17,370", color: "bg-[#7FA987]", text: "text-[#388E5C]" },
-    { name: "Starter Tier", percent: 12, amount: "$5,790", color: "bg-[#E8836B]", text: "text-[#D96B4F]" },
-  ];
+  const tiers = useMemo(() => {
+    if (isDemo || !invoices || invoices.length === 0) {
+      return [
+        { name: "Scale Tier", percent: 52, amount: "$25,090", color: "bg-[#2D5A43]", text: "text-[#2D5A43]" },
+        { name: "Growth Tier", percent: 36, amount: "$17,370", color: "bg-[#7FA987]", text: "text-[#388E5C]" },
+        { name: "Starter Tier", percent: 12, amount: "$5,790", color: "bg-[#E8836B]", text: "text-[#D96B4F]" },
+      ];
+    }
+
+    const total = invoices.reduce((sum, i) => sum + i.amount, 0) || 1;
+    const planMap = new Map<string, number>();
+    invoices.forEach((i) => {
+      const name = i.planName || "Standard Plan";
+      planMap.set(name, (planMap.get(name) || 0) + i.amount);
+    });
+
+    const colors = [
+      { color: "bg-[#2D5A43]", text: "text-[#2D5A43]" },
+      { color: "bg-[#7FA987]", text: "text-[#388E5C]" },
+      { color: "bg-[#E8836B]", text: "text-[#D96B4F]" },
+      { color: "bg-[#4A7C59]", text: "text-[#4A7C59]" },
+    ];
+
+    const result = [];
+    let idx = 0;
+    for (const [name, amount] of planMap.entries()) {
+      const percent = Math.max(1, Math.round((amount / total) * 100));
+      const c = colors[idx % colors.length];
+      result.push({
+        name,
+        percent,
+        amount: `$${amount.toLocaleString()}`,
+        color: c.color,
+        text: c.text,
+      });
+      idx++;
+    }
+    return result;
+  }, [isDemo, invoices]);
 
   return (
     <div className="bg-white p-6 rounded-2xl border border-[#E8E6E0] flex flex-col justify-between">
@@ -106,9 +148,14 @@ export default function PlanDistribution({ loading = false, isEmpty = false }: P
 
         {/* Multi-segment progress bar */}
         <div className="w-full h-3 bg-stone-100 rounded-full overflow-hidden flex mt-5 p-0.5 border border-[#E8E6E0]">
-          <div style={{ width: "52%" }} className="bg-[#2D5A43] h-full rounded-l-full" title="Scale: 52%" />
-          <div style={{ width: "36%" }} className="bg-[#7FA987] h-full" title="Growth: 36%" />
-          <div style={{ width: "12%" }} className="bg-[#E8836B] h-full rounded-r-full" title="Starter: 12%" />
+          {tiers.map((t, idx) => (
+            <div
+              key={t.name}
+              style={{ width: `${t.percent}%` }}
+              className={`${t.color} h-full ${idx === 0 ? "rounded-l-full" : ""} ${idx === tiers.length - 1 ? "rounded-r-full" : ""}`}
+              title={`${t.name}: ${t.percent}%`}
+            />
+          ))}
         </div>
 
         {/* Breakdown listing */}
@@ -136,13 +183,21 @@ export default function PlanDistribution({ loading = false, isEmpty = false }: P
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E8E6E0]">
             <div className="text-[10px] font-mono uppercase text-stone-400">Quick Ratio</div>
-            <div className="text-base font-bold text-[#2D5A43] mt-0.5 tabular-nums">3.8x</div>
-            <div className="text-[10px] text-emerald-700 font-medium mt-0.5">High efficiency</div>
+            <div className="text-base font-bold text-[#2D5A43] mt-0.5 tabular-nums">
+              {isDemo ? "3.8x" : "1.0x"}
+            </div>
+            <div className="text-[10px] text-emerald-700 font-medium mt-0.5">
+              {isDemo ? "High efficiency" : "Initial baseline"}
+            </div>
           </div>
           <div className="p-3 rounded-xl bg-[#FAF9F6] border border-[#E8E6E0]">
             <div className="text-[10px] font-mono uppercase text-stone-400">LTV / CAC</div>
-            <div className="text-base font-bold text-[#2D5A43] mt-0.5 tabular-nums">4.2x</div>
-            <div className="text-[10px] text-emerald-700 font-medium mt-0.5">Target &gt; 3.0x</div>
+            <div className="text-base font-bold text-[#2D5A43] mt-0.5 tabular-nums">
+              {isDemo ? "4.2x" : "—"}
+            </div>
+            <div className="text-[10px] text-emerald-700 font-medium mt-0.5">
+              {isDemo ? "Target > 3.0x" : "Requires 3+ cycles"}
+            </div>
           </div>
         </div>
       </div>

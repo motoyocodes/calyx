@@ -76,41 +76,71 @@ export default function DashboardOverview() {
       id: "mrr",
       title: "Monthly Recurring Revenue",
       value: formatMoneyWithFX(liveMRR, false),
-      changePercent: isCleanSlate ? 0 : 14.2,
-      changeType: isCleanSlate ? "neutral" : "positive",
-      changeDescription: isCleanSlate ? "Awaiting ledger transactions" : `+${formatMoneyWithFX(5980, false)} from last month`,
-      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
-      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [38200, 39500, 41000, 42100, 43800, 45200, liveMRR || 48250],
+      changePercent: isDemoData ? 14.2 : 0,
+      changeType: isDemoData ? "positive" : invoices.length > 0 ? "positive" : "neutral",
+      changeDescription: isDemoData
+        ? `+${formatMoneyWithFX(5980, false)} from last month`
+        : invoices.length === 0
+        ? "Awaiting ledger transactions"
+        : invoices.length === 1
+        ? "1 active invoice recorded"
+        : `${invoices.length} active invoices recorded`,
+      timeframe: isDemoData ? "vs. previous 30 days" : "Current billing cycle",
+      sparklineData: isDemoData
+        ? [38200, 39500, 41000, 42100, 43800, 45200, liveMRR || 48250]
+        : invoices.length === 0
+        ? [0, 0, 0, 0, 0, 0, 0]
+        : [0, 0, 0, 0, Math.round(liveMRR * 0.7), liveMRR, liveMRR],
     },
     {
       id: "churn",
       title: "Net Revenue Churn",
       value: `${liveChurn.toFixed(1)}%`,
-      changePercent: isCleanSlate ? 0 : -0.4,
-      changeType: isCleanSlate ? "neutral" : "positive",
-      changeDescription: isCleanSlate ? "0.0% benchmark target" : "-0.4% lower than industry benchmark",
-      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
-      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [1.8, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1],
+      changePercent: isDemoData ? -0.4 : 0,
+      changeType: isDemoData ? "positive" : "neutral",
+      changeDescription: isDemoData
+        ? "-0.4% lower than industry benchmark"
+        : customers.length === 0
+        ? "0.0% benchmark target"
+        : "0 accounts at risk",
+      timeframe: isDemoData ? "vs. previous 30 days" : "Current billing cycle",
+      sparklineData: isDemoData
+        ? [1.8, 1.6, 1.5, 1.4, 1.3, 1.2, 1.1]
+        : [0, 0, 0, 0, 0, 0, liveChurn],
     },
     {
       id: "active_subscribers",
       title: "Active Subscriptions",
       value: liveSubscribers.toString(),
-      changePercent: isCleanSlate ? 0 : 8.9,
-      changeType: isCleanSlate ? "neutral" : "positive",
-      changeDescription: isCleanSlate ? "Awaiting customer enrollment" : "+36 net new accounts",
-      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
-      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [360, 372, 385, 394, 405, 412, liveSubscribers || 428],
+      changePercent: isDemoData ? 8.9 : liveSubscribers > 0 ? 100 : 0,
+      changeType: isDemoData ? "positive" : liveSubscribers > 0 ? "positive" : "neutral",
+      changeDescription: isDemoData
+        ? "+36 net new accounts"
+        : liveSubscribers === 0
+        ? "Awaiting customer enrollment"
+        : liveSubscribers === 1
+        ? "1 active account"
+        : `${liveSubscribers} active accounts`,
+      timeframe: isDemoData ? "vs. previous 30 days" : "Current billing cycle",
+      sparklineData: isDemoData
+        ? [360, 372, 385, 394, 405, 412, liveSubscribers || 428]
+        : [0, 0, 0, 0, 0, 0, liveSubscribers],
     },
     {
       id: "arpu",
       title: "Average Revenue Per User",
       value: formatMoneyWithFX(liveARPU, true),
-      changePercent: isCleanSlate ? 0 : 4.8,
-      changeType: isCleanSlate ? "neutral" : "positive",
-      changeDescription: isCleanSlate ? "Calculated across active accounts" : `+${formatMoneyWithFX(5.2, true)} plan expansion`,
-      timeframe: isCleanSlate ? "Current period" : "vs. previous 30 days",
-      sparklineData: isCleanSlate ? [0, 0, 0, 0, 0, 0, 0] : [98, 102, 104, 107, 109, 110, liveARPU || 112.7],
+      changePercent: isDemoData ? 4.8 : 0,
+      changeType: isDemoData ? "positive" : "neutral",
+      changeDescription: isDemoData
+        ? `+${formatMoneyWithFX(5.2, true)} plan expansion`
+        : liveSubscribers > 0
+        ? "Calculated across active accounts"
+        : "Awaiting active accounts",
+      timeframe: isDemoData ? "vs. previous 30 days" : "Average per client",
+      sparklineData: isDemoData
+        ? [98, 102, 104, 107, 109, 110, liveARPU || 112.7]
+        : [0, 0, 0, 0, 0, 0, liveARPU],
     },
   ];
 
@@ -247,14 +277,22 @@ export default function DashboardOverview() {
         <div className="lg:col-span-2">
           <RevenueChart
             loading={isRefreshing}
-            isEmpty={isCleanSlate}
+            isEmpty={invoices.length === 0 && !isDemoData}
+            isDemo={isDemoData}
             companyName={user?.company || "Your Company"}
+            liveMRR={liveMRR}
+            invoiceCount={invoices.length}
             onCreateInvoice={() => setIsCreateModalOpen(true)}
             onLoadDemo={loadDemoData}
           />
         </div>
         <div>
-          <PlanDistribution loading={isRefreshing} isEmpty={isCleanSlate} />
+          <PlanDistribution
+            loading={isRefreshing}
+            isEmpty={invoices.length === 0 && !isDemoData}
+            isDemo={isDemoData}
+            invoices={invoices}
+          />
         </div>
       </section>
 

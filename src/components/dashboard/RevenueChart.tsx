@@ -8,7 +8,10 @@ import { TrendingUp, BarChart3, Calendar, Layers } from "lucide-react";
 interface RevenueChartProps {
   loading?: boolean;
   isEmpty?: boolean;
+  isDemo?: boolean;
   companyName?: string;
+  liveMRR?: number;
+  invoiceCount?: number;
   onCreateInvoice?: () => void;
   onLoadDemo?: () => void;
 }
@@ -16,7 +19,10 @@ interface RevenueChartProps {
 export default function RevenueChart({
   loading = false,
   isEmpty = false,
+  isDemo = false,
   companyName,
+  liveMRR,
+  invoiceCount,
   onCreateInvoice,
   onLoadDemo,
 }: RevenueChartProps) {
@@ -86,9 +92,26 @@ export default function RevenueChart({
     );
   }
 
+  // Generate realistic timeline based on active mode
+  const monthsData: RevenueMonth[] = React.useMemo(() => {
+    if (isDemo || (!liveMRR && !invoiceCount)) {
+      return REVENUE_HISTORY;
+    }
+
+    const currentAmount = liveMRR || 0;
+    return [
+      { month: "Nov 2025", shortMonth: "Nov", mrr: 0, netNew: 0, churn: 0, newCustomers: 0 },
+      { month: "Dec 2025", shortMonth: "Dec", mrr: 0, netNew: 0, churn: 0, newCustomers: 0 },
+      { month: "Jan 2026", shortMonth: "Jan", mrr: 0, netNew: 0, churn: 0, newCustomers: 0 },
+      { month: "Feb 2026", shortMonth: "Feb", mrr: 0, netNew: 0, churn: 0, newCustomers: 0 },
+      { month: "Mar 2026", shortMonth: "Mar", mrr: currentAmount, netNew: currentAmount, churn: 0, newCustomers: invoiceCount || 1 },
+      { month: "Apr 2026", shortMonth: "Apr", mrr: currentAmount, netNew: 0, churn: 0, newCustomers: 0 },
+    ];
+  }, [isDemo, liveMRR, invoiceCount]);
+
   // Find scale range
-  const values = REVENUE_HISTORY.map((m) => m[activeMetric]);
-  const maxVal = Math.max(...values);
+  const values = monthsData.map((m) => m[activeMetric]);
+  const maxVal = Math.max(...values, 1);
   const minVal = 0;
 
   return (
@@ -103,7 +126,9 @@ export default function RevenueChart({
             </span>
           </div>
           <p className="text-xs text-stone-500 mt-0.5">
-            Recurring subscription volume and net contraction across previous 7 billing cohorts.
+            {isDemo
+              ? "Recurring subscription volume and net contraction across previous 7 billing cohorts."
+              : `Live recurring billing telemetry and revenue volume for ${companyName || "your workspace"}.`}
           </p>
         </div>
 
@@ -166,9 +191,9 @@ export default function RevenueChart({
 
         {/* Chart Bars */}
         <div className="h-64 flex items-end justify-between gap-3 sm:gap-6 pt-12 pb-2 px-2">
-          {REVENUE_HISTORY.map((item) => {
+          {monthsData.map((item) => {
             const val = item[activeMetric];
-            const heightPercent = Math.max(12, Math.round((val / maxVal) * 100));
+            const heightPercent = val === 0 ? 6 : Math.max(14, Math.round((val / maxVal) * 100));
             const isSelected = hoveredMonth?.month === item.month;
 
             return (
@@ -184,7 +209,7 @@ export default function RevenueChart({
                     isSelected ? "text-stone-900 opacity-100 font-bold" : "opacity-0 group-hover:opacity-100 text-stone-500"
                   }`}
                 >
-                  ${(val / 1000).toFixed(1)}k
+                  {val >= 1000 ? `$${(val / 1000).toFixed(1)}k` : `$${val}`}
                 </span>
 
                 {/* Animated Rounded Column */}
